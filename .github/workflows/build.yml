@@ -4,6 +4,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: macos-15
@@ -44,3 +47,14 @@ jobs:
         with:
           name: TaurineReborn-ipa
           path: TaurineReborn.ipa
+
+      - name: Publish as GitHub Release (direct download link)
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="build-${{ github.run_number }}"
+          gh release create "$TAG" TaurineReborn.ipa \
+            --title "Taurine Reborn (build ${{ github.run_number }})" \
+            --notes "Unsigned IPA for iOS 14.0–14.8.1. Sign + install with your sideloader (Apple ID signing). Exploit code is byte-identical to upstream Taurine." \
+            --latest
