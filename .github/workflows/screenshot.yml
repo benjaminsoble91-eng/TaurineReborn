@@ -1,0 +1,59 @@
+name: UI Screenshots
+
+on:
+  push:
+    paths:
+      - 'Taurine/app/**'
+      - '.github/workflows/screenshot.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  screenshots:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 16.4
+        run: sudo xcode-select -s /Applications/Xcode_16.4.app/Contents/Developer
+
+      - name: Build for the iOS Simulator (exploits are skipped in the simulator)
+        run: |
+          xcodebuild build -project Taurine.xcodeproj -scheme Taurine -configuration Debug \
+            -sdk iphonesimulator -derivedDataPath build ARCHS=arm64 ONLY_ACTIVE_ARCH=YES \
+            CODE_SIGNING_ALLOWED=NO -quiet
+
+      - name: Boot simulator, launch app, take screenshots
+        run: |
+          set -x
+          UDID=$(xcrun simctl list devices available -j | python3 -c "
+          import json,sys
+          d=json.load(sys.stdin)['devices']
+          c=[x for rt,v in d.items() if 'iOS' in rt for x in v if x['name'].startswith('iPhone') and 'Pro' in x['name'] and 'Max' not in x['name']]
+          print(c[-1]['udid'])")
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl ui "$UDID" appearance dark
+          xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3
+          APP=$(find build/Build/Products -name "Taurine.app" -type d | head -1)
+          xcrun simctl install "$UDID" "$APP"
+          BID=$(/usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Info.plist")
+          xcrun simctl launch "$UDID" "$BID"
+          sleep 6
+          xcrun simctl io "$UDID" screenshot ui-main.png
+          sleep 6
+          xcrun simctl io "$UDID" screenshot ui-main-2.png
+          # home screen icon/name
+          xcrun simctl terminate "$UDID" "$BID" || true
+          sleep 2
+          xcrun simctl io "$UDID" screenshot ui-homescreen.png
+
+      - name: Publish screenshots
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete screenshots --yes --cleanup-tag 2>/dev/null || true
+          gh release create screenshots ui-main.png ui-main-2.png ui-homescreen.png \
+            --title "UI screenshots" --notes "Taurine Reborn running in the iOS Simulator (exploits are skipped there)." --prerelease
