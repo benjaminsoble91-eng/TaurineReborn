@@ -15,10 +15,11 @@ jobs:
       - name: Verify exploit code is untouched
         run: ./scripts/verify-untouched.sh
 
-      - name: Pick the oldest installed Xcode (best iOS 14 support)
+      - name: Pick Xcode 16.4 (supports iOS 14 targets + has a matching simulator runtime)
         run: |
           ls -d /Applications/Xcode*.app
-          XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | head -1)
+          XCODE=/Applications/Xcode_16.4.app
+          [ -d "$XCODE" ] || XCODE=$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)
           echo "Using $XCODE"
           sudo xcode-select -s "$XCODE/Contents/Developer"
           xcodebuild -version
