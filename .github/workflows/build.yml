@@ -6,21 +6,40 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
           fetch-depth: 0
 
       - name: Verify exploit code is untouched
         run: ./scripts/verify-untouched.sh
 
+      - name: Pick the oldest installed Xcode (best iOS 14 support)
+        run: |
+          ls -d /Applications/Xcode*.app
+          XCODE=$(ls -d /Applications/Xcode_*.app | sort -V | head -1)
+          echo "Using $XCODE"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
       - name: Build unsigned IPA
         run: make
+
+      - name: Check the app still targets iOS 14
+        run: |
+          BIN=Payload/Taurine.app/Taurine
+          lipo -info "$BIN"
+          otool -l "$BIN" | grep -A4 LC_BUILD_VERSION | tee /tmp/bv.txt
+          MINOS=$(awk '/minos/{print $2; exit}' /tmp/bv.txt)
+          echo "minos = $MINOS"
+          case "$MINOS" in 14.*) echo "OK: runs on iOS 14";; *) echo "::error::App requires iOS $MINOS, not 14 — this Xcode is too new"; exit 1;; esac
+
+      - name: Rename IPA
+        run: mv Taurine.ipa TaurineReborn.ipa
 
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: TaurineReborn-ipa
-          path: Taurine.ipa
+          path: TaurineReborn.ipa
