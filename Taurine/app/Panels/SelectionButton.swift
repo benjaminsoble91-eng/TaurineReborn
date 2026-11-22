@@ -34,10 +34,11 @@ class SelectionButton: TableButton {
     }
     
     @objc func updateCheckmark() {
-        if UserDefaults.standard.string(forKey: defaultsKey) == defaultsValue {
-            checkmarkImage.alpha = 1
-        } else {
-            checkmarkImage.alpha = 0
+        let selected = UserDefaults.standard.string(forKey: defaultsKey) == defaultsValue
+        let target: CGFloat = selected ? 1 : 0
+        guard checkmarkImage.alpha != target else { return }
+        UIView.animate(withDuration: window == nil ? 0 : 0.2) {
+            self.checkmarkImage.alpha = target
         }
     }
     
@@ -45,8 +46,10 @@ class SelectionButton: TableButton {
         guard !defaultsKey.isEmpty else {
             fatalError("Need to set a key in storyboard")
         }
+        if UserDefaults.standard.string(forKey: defaultsKey) != defaultsValue {
+            UISelectionFeedbackGenerator().selectionChanged()
+        }
         UserDefaults.standard.set(defaultsValue, forKey: defaultsKey)
-        UserDefaults.standard.synchronize()
         
         guard !notificationName.isEmpty else {
             return

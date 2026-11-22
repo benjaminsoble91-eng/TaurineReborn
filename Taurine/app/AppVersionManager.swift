@@ -33,9 +33,10 @@ final class AppVersionManager {
             completion(.failure(AVMError.inaccessabileCurrentVerison))
             return
         }
-        let session = URLSession(configuration: .default)
+        var request = URLRequest(url: latestReleaseURL, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10)
+        request.httpMethod = "GET"
         
-        session.dataTask(with: latestReleaseURL) { data, _, error in
+        URLSession.shared.dataTask(with: request) { data, _, error in
             do {
                 if let error = error {
                     throw error
@@ -48,7 +49,9 @@ final class AppVersionManager {
                 let currentRelease = try JSONDecoder().decode(LatestVersionStruct.self, from: data)
                 self.cachedLatestVersion = currentRelease
             
-                completion(.success(currentVersion < currentRelease.versionNumber))
+                // Taurine Reborn: numeric compare ("1.1.10" > "1.1.7"); plain string compare got this wrong.
+                let needsUpdate = currentVersion.compare(currentRelease.versionNumber, options: .numeric) == .orderedAscending
+                completion(.success(needsUpdate))
             } catch {
                 completion(.failure(error))
             }

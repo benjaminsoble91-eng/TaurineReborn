@@ -42,15 +42,18 @@ class ViewController: UIViewController, ElectraUI {
     
     private var currentView: (UIView & PanelView)?
 
+    // Taurine Reborn
+    private var themeGeneration = 0
+    private var colourChangeWork: DispatchWorkItem?
+    private lazy var backgroundView: BackgroundView? = view.firstSubview(ofType: BackgroundView.self)
+
+    /// Breathing room after the log sheet finishes presenting before the exploit starts,
+    /// so the main thread is idle when the kernel exploit runs. Upstream used a flat
+    /// 1.5s (1s + 500ms sleep). Raise this if you ever see lower success rates.
+    private let exploitStartSettleTime: TimeInterval = 0.3
+
     override func viewDidLoad() {
         super.viewDidLoad()
-        
-        //This will reset user defaults, used it a lot for testing
-        /*
-        if let bundleID = Bundle.main.bundleIdentifier {
-            UserDefaults.standard.removePersistentDomain(forName: bundleID)
-        }
-        */
         
         currentView = switchesView
         nonceSetter.delegate = NonceManager.shared
@@ -87,8 +90,10 @@ class ViewController: UIViewController, ElectraUI {
             case .success(let updateRequired):
                 if (updateRequired) {
                     DispatchQueue.main.async {
-                        UIView.animate(withDuration: 0.5) {
-                            self.updateOdysseyView.isHidden = false
+                        self.updateOdysseyView.alpha = 0
+                        self.updateOdysseyView.isHidden = false
+                        UIView.animate(withDuration: 0.4) {
+                            self.updateOdysseyView.alpha = 1
                         }
                     }
                 }
@@ -122,20 +127,26 @@ class ViewController: UIViewController, ElectraUI {
             bgImage = ThemesManager.shared.currentTheme.backgroundImage
         }
         
+        // Taurine Reborn: wallpapers are cropped, downscaled and decoded in the
+        // background, then faded in, instead of being decoded on the main thread.
+        themeGeneration += 1
+        let generation = themeGeneration
         if let bgImage = bgImage {
-            if custom {
-                backgroundImage.image = bgImage
-            } else {
-                let aspectHeight = self.view.bounds.height
-                let aspectWidth = self.view.bounds.width
-                    
-                let maxDimension = max(aspectHeight, aspectWidth)
-                let isiPad = UIDevice.current.userInterfaceIdiom == .pad
-                
-                backgroundImage.image = ImageProcess.sizeImage(image: bgImage,
-                                                               aspectHeight: isiPad ? maxDimension : aspectHeight,
-                                                               aspectWidth: isiPad ? maxDimension : aspectWidth,
-                                                                center: ThemesManager.shared.currentTheme.backgroundCenter)
+            let aspectHeight = self.view.bounds.height
+            let aspectWidth = self.view.bounds.width
+            let maxDimension = max(aspectHeight, aspectWidth)
+            let isiPad = UIDevice.current.userInterfaceIdiom == .pad
+
+            ImageProcess.prepareBackground(image: bgImage,
+                                           aspectHeight: isiPad ? maxDimension : aspectHeight,
+                                           aspectWidth: isiPad ? maxDimension : aspectWidth,
+                                           center: custom ? nil : theme.backgroundCenter,
+                                           screenScale: view.window?.screen.scale ?? UIScreen.main.scale) { [weak self] image in
+                guard let self = self, generation == self.themeGeneration else { return }
+                let animate = self.view.window != nil
+                UIView.transition(with: self.backgroundImage, duration: animate ? 0.3 : 0, options: .transitionCrossDissolve, animations: {
+                    self.backgroundImage.image = image
+                }, completion: nil)
             }
         } else {
             backgroundImage.image = nil
@@ -156,10 +167,17 @@ class ViewController: UIViewController, ElectraUI {
     func updateButton(_ title: String) {
         DispatchQueue.main.async {
             self.jailbreakButton.setTitle(title, for: .normal)
+            // Status updates from the post-exploit stage: creep the bar forward so it
+            // never looks frozen (never past 95% until we're actually done).
+            if self.jailbreakButton.progress >= 0.66 && self.jailbreakButton.progress < 0.95 {
+                self.jailbreakButton.setProgress(min(0.95, self.jailbreakButton.progress + 0.08), animated: true)
+            }
         }
     }
     
     func showAlert(_ title: String, _ message: String, sync: Bool, callback: (() -> Void)? = nil, yesNo: Bool = false, noButtonText: String? = nil) {
+        // Waiting on the main thread would deadlock (the alert needs the main thread to appear).
+        let sync = sync && !Thread.isMainThread
         let sem = DispatchSemaphore(value: 0)
         DispatchQueue.main.async {
             let alertController = UIAlertController(title: title, message: message, preferredStyle: .alert)
@@ -178,29 +196,51 @@ class ViewController: UIViewController, ElectraUI {
                     }
                 })
             }
-            (self.presentedViewController ?? self).present(alertController, animated: true, completion: nil)
+            var presenter: UIViewController = self
+            while let next = presenter.presentedViewController, !next.isBeingDismissed {
+                presenter = next
+            }
+            presenter.present(alertController, animated: true, completion: nil)
         }
         if sync {
             sem.wait()
         }
     }
     
+    /// Runs `block` once the UI is idle: after the log sheet finishes presenting (if
+    /// it's being shown) plus a short settle time.
+    private func afterUISettles(_ block: @escaping () -> Void) {
+        let settle = exploitStartSettleTime
+        if let coordinator = presentedViewController?.transitionCoordinator ?? transitionCoordinator {
+            coordinator.animate(alongsideTransition: nil) { _ in
+                DispatchQueue.main.asyncAfter(deadline: .now() + settle, execute: block)
+            }
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + max(settle, 0.35), execute: block)
+        }
+    }
+
     @IBAction func jailbreak() {
         jailbreakButton?.isEnabled = false
         containerView.isUserInteractionEnabled = false
         UIApplication.shared.isIdleTimerDisabled = true
+        cancelPopTimer()
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+
+        // Freeze the animated background so the GPU/CPU aren't busy while we jailbreak.
+        backgroundView?.setAnimationsPaused(true)
 
         if self.logSwitch.isOn {
-            UIView.animate(withDuration: 0.5) {
+            UIView.animate(withDuration: 0.3) {
                 self.containerView.alpha = 0.3
             }
             self.performSegue(withIdentifier: "logSegue", sender: self.jailbreakButton)
         } else {
-            UIView.animate(withDuration: 0.5) {
+            UIView.animate(withDuration: 0.3) {
                 self.containerView.alpha = 0.5
             }
         }
-        self.jailbreakButton.setTitle("Running Exploit.. 1/3", for: .normal)
+        self.jailbreakButton.setTitle("Exploiting Kernel · 1/3", for: .normal)
         self.jailbreakButton.setProgress(0.33, animated: true)
         
         let enableTweaks = self.enableTweaksSwitch.isOn
@@ -212,14 +252,12 @@ class ViewController: UIViewController, ElectraUI {
         let simulateJailbreak = false
         #endif
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+        afterUISettles {
             DispatchQueue.global(qos: .userInteractive).async {
-                usleep(500 * 1000)
-                
                 if simulateJailbreak {
                     sleep(1)
                     DispatchQueue.main.async {
-                        self.jailbreakButton.setTitle("Jailbreaking.. 2/3", for: .normal)
+                        self.jailbreakButton.setTitle("Jailbreaking · 2/3", for: .normal)
                         self.jailbreakButton.setProgress(0.4, animated: true)
                     }
                     var outStream = StandardOutputStream.shared
@@ -229,7 +267,7 @@ class ViewController: UIViewController, ElectraUI {
                     
                     sleep(2)
                     DispatchQueue.main.async {
-                        self.jailbreakButton.setTitle("Jailbreaking.. 3/3", for: .normal)
+                        self.jailbreakButton.setTitle("Finishing Up · 3/3", for: .normal)
                         self.jailbreakButton.setProgress(0.8, animated: true)
                     }
                     print("Testing log2", to: &outStream)
@@ -284,14 +322,18 @@ class ViewController: UIViewController, ElectraUI {
                 }
                 guard hasKernelRw else {
                     DispatchQueue.main.async {
-                        self.jailbreakButton.setTitle("Error: Exploit Failed", for: .normal)
+                        UINotificationFeedbackGenerator().notificationOccurred(.error)
+                        self.jailbreakButton.setTitle("Exploit Failed · Reboot & Retry", for: .normal)
                         self.jailbreakButton.setProgress(0, animated: true)
+                        self.backgroundView?.setAnimationsPaused(false)
+                        UIView.animate(withDuration: 0.3) { self.containerView.alpha = 1 }
                     }
                     return
                 }
-                
+
                 DispatchQueue.main.async {
-                    self.jailbreakButton.setTitle("Please Wait... 2/3", for: .normal)
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    self.jailbreakButton.setTitle("Jailbreaking · 2/3", for: .normal)
                     self.jailbreakButton.setProgress(0.66, animated: true)
                 }
                 let electra = Electra(ui: self,
@@ -304,7 +346,9 @@ class ViewController: UIViewController, ElectraUI {
                 
                 DispatchQueue.main.async {
                     self.jailbreakButton.setProgress(1.0, animated: true)
+                    UINotificationFeedbackGenerator().notificationOccurred(err == .ERR_NOERR ? .success : .error)
                     if err != .ERR_NOERR {
+                        self.backgroundView?.setAnimationsPaused(false)
                         self.showAlert("Oh no", "\(String(describing: err))", sync: false, callback: {
                             UIApplication.shared.beginBackgroundTask {
                                 print("odd. this should never be called.")
@@ -359,6 +403,7 @@ class ViewController: UIViewController, ElectraUI {
         scrollView.isUserInteractionEnabled = false
         
         button.childPanel.isHidden = false
+        button.childPanel.loadAvatarsIfNeeded()
         self.currentView = button.childPanel
         
         scrollAnimationClosures.append {
@@ -416,12 +461,15 @@ extension ViewController: UIScrollViewDelegate {
         guard var view = self.currentView else {
             return
         }
-        while view.frame.minX != self.scrollView.contentOffset.x {
-            guard view.frame.minX > self.scrollView.contentOffset.x else {
-                fatalError("User dragged the other way???")
+        // Taurine Reborn: the original fatalError()'d (crashed the app) if the offset
+        // didn't line up exactly. Compare with a tolerance and bail out safely instead.
+        let offsetX = self.scrollView.contentOffset.x
+        while abs(view.frame.minX - offsetX) > 1 {
+            guard view.frame.minX > offsetX, !view.isRootView, let parent = view.parentView else {
+                break
             }
             popCount += 1
-            view = view.parentView
+            view = parent
         }
         
         for _ in 0..<popCount {
@@ -462,13 +510,15 @@ extension ViewController {
 extension ViewController: ThemeImagePickerDelegate {
     func didSelect(image: UIImage?) {
         resetPopTimer()
-        guard let image = image,
-              let data = image.pngData() else { return }
-        do {
-            try data.write(to: ThemesManager.customImageDirectory, options: .atomic)
-            self.updateTheme()
-        } catch {
-            print("Confusion")
+        guard let image = image else { return }
+        let screen = view.window?.screen ?? UIScreen.main
+        let maxPixels = max(screen.bounds.width, screen.bounds.height) * screen.scale
+        ImageProcess.saveCustomImage(image, to: ThemesManager.customImageDirectory, maxPixelSize: maxPixels) { [weak self] ok in
+            if ok {
+                self?.updateTheme()
+            } else {
+                self?.showAlert("Couldn't Save Image", "Please try a different photo.", sync: false)
+            }
         }
     }
 }
@@ -476,7 +526,13 @@ extension ViewController: ThemeImagePickerDelegate {
 extension ViewController: UIColorPickerViewControllerDelegate {
     func colorPickerViewControllerDidSelectColor(_ viewController: UIColorPickerViewController) {
         UserDefaults.standard.set(viewController.selectedColor, forKey: activeColourDefault)
-        NotificationCenter.default.post(name: ThemesManager.themeChangeNotification, object: nil)
+        // Fires continuously while dragging; rebuild the theme at most ~10x/sec.
+        colourChangeWork?.cancel()
+        let work = DispatchWorkItem {
+            NotificationCenter.default.post(name: ThemesManager.themeChangeNotification, object: nil)
+        }
+        colourChangeWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: work)
     }
     func colorPickerViewControllerDidFinish(_ viewController: UIColorPickerViewController) {
         resetPopTimer()
@@ -501,4 +557,14 @@ func isJailbroken() -> Bool {
         }
     }
     return false
+}
+
+private extension UIView {
+    func firstSubview<T: UIView>(ofType type: T.Type) -> T? {
+        for subview in subviews {
+            if let match = subview as? T { return match }
+            if let match = subview.firstSubview(ofType: type) { return match }
+        }
+        return nil
+    }
 }

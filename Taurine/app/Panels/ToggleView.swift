@@ -17,7 +17,7 @@ class ToggleView: UIView {
     override func awakeFromNib() {
         super.awakeFromNib()
         
-        if !prefsName.isEmpty {
+        if let prefsName = prefsName, !prefsName.isEmpty {
             if UserDefaults.standard.value(forKey: prefsName) != nil {
                 let value = UserDefaults.standard.bool(forKey: prefsName)
                 toggle.isOn = value
@@ -26,7 +26,8 @@ class ToggleView: UIView {
     }
     
     @IBAction func valueChanged() {
-        if !prefsName.isEmpty {
+        UISelectionFeedbackGenerator().selectionChanged()
+        if let prefsName = prefsName, !prefsName.isEmpty {
             UserDefaults.standard.set(toggle.isOn, forKey: prefsName)
         }
         

@@ -16,10 +16,16 @@ extension UIColor {
 }
 
 class ProgressLabel: UIView {
-    public var progress = CGFloat(0)
+    public var progress = CGFloat(0) {
+        didSet { if progress != oldValue { setNeedsDisplay() } }
+    }
     public var titleColor: UIColor?
-    public var title: String?
-    public var font: UIFont?
+    public var title: String? {
+        didSet { if title != oldValue { setNeedsDisplay() } }
+    }
+    public var font: UIFont? {
+        didSet { setNeedsDisplay() }
+    }
     
     override init(frame: CGRect) {
         super.init(frame: frame)
@@ -36,7 +42,7 @@ class ProgressLabel: UIView {
         titleColor = UIColor.white
         guard let ctx = UIGraphicsGetCurrentContext(),
               let font = font,
-              let titleStr = title as? NSString,
+              let titleStr = title.map({ $0 as NSString }),
               let titleColor = titleColor else {
             return
         }
@@ -56,7 +62,7 @@ class ProgressLabel: UIView {
         titleStr.draw(at: textPoint, withAttributes: attributes)
         
         ctx.saveGState()
-        let remainingProgressRect = CGRect(x: progressX, y: 0, width: size.width - progress, height: size.height)
+        let remainingProgressRect = CGRect(x: progressX, y: 0, width: size.width - progressX, height: size.height)
         ctx.addRect(remainingProgressRect)
         ctx.clip()
         

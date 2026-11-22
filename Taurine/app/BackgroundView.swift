@@ -29,7 +29,7 @@ class BackgroundView: UIView {
             case .escaped:
                 let blur = (NSClassFromString("_UICustomBlurEffect") as! UIBlurEffect.Type).init()
                 blur.setValue(45, forKey: "blurRadius")
-                blur.setValue(UIColor(red: 255, green: 255, blue: 255, alpha: 0.3), forKey: "colorTint")
+                blur.setValue(UIColor(red: 1, green: 1, blue: 1, alpha: 0.3), forKey: "colorTint")
                 blur.setValue(1.8, forKey: "saturationDeltaFactor")
                 blur.setValue(1, forKey: "darkeningTintAlpha")
                 blur.setValue(1, forKey: "darkeningTintSaturation")
@@ -103,6 +103,11 @@ class BackgroundView: UIView {
         }, completion: nil)
     }
 
+    /// Taurine Reborn: freeze the animated gradient while the jailbreak runs.
+    func setAnimationsPaused(_ paused: Bool) {
+        animatingColourView.setAnimationsPaused(paused)
+    }
+    
     func createVibrancyView() -> UIVisualEffectView {
         let vibrancyView = UIVisualEffectView(effect: mode.vibrancyEffect)
         vibrancyView.contentView.tintColor = .white

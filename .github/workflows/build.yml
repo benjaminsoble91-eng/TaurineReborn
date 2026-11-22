@@ -1,0 +1,26 @@
+name: Build Taurine Reborn
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Verify exploit code is untouched
+        run: ./scripts/verify-untouched.sh
+
+      - name: Build unsigned IPA
+        run: make
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: TaurineReborn-ipa
+          path: Taurine.ipa

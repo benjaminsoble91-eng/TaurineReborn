@@ -10,7 +10,10 @@ import UIKit
 
 class Theme {
     let colorViewBackgrounds: [AnimatingColourView.GradientBackground]
-    let backgroundImage: UIImage?
+    /// Asset name of the wallpaper. Loaded on first use instead of at launch
+    /// (the original decoded all four wallpaper HEICs as soon as the app opened).
+    let backgroundImageName: String?
+    private(set) lazy var backgroundImage: UIImage? = backgroundImageName.flatMap { UIImage(named: $0) }
     let backgroundCenter: CGPoint
     let backgroundOverlay: UIColor?
     let progressGradientColors: [UIColor]?
@@ -19,7 +22,7 @@ class Theme {
     let copyrightString: String
     
     init(colorViewBackgrounds: [AnimatingColourView.GradientBackground],
-         backgroundImage: UIImage?,
+         backgroundImageName: String?,
          backgroundCenter: CGPoint = .zero,
          backgroundOverlay: UIColor?,
          progressGradientColors: [UIColor]? = nil,
@@ -27,7 +30,7 @@ class Theme {
          enableBlur: Bool,
          copyrightString: String = "") {
         self.colorViewBackgrounds = colorViewBackgrounds
-        self.backgroundImage = backgroundImage
+        self.backgroundImageName = backgroundImageName
         self.backgroundCenter = backgroundCenter
         self.backgroundOverlay = backgroundOverlay
         self.progressGradientColors = progressGradientColors

@@ -23,19 +23,19 @@ class ThemesManager {
             .init(baseColour: .black, linearGradients: [
                 .init(colours: [UIColor(red: 165/255, green: 0/255, blue: 0/255, alpha: 1), UIColor(red: 0/255, green: 11/255, blue: 141/255, alpha: 1)], angle: 47)
             ], overlayImage: nil)
-        ], backgroundImage: nil, backgroundOverlay: nil, enableBlur: false),
+        ], backgroundImageName: nil, backgroundOverlay: nil, enableBlur: false),
         
         "sugarfree": Theme(colorViewBackgrounds: [
             .init(baseColour: .black, linearGradients: [
                 .init(colours: [UIColor(red: 40/255, green: 175/255, blue: 200/255, alpha: 0.8), UIColor(red: 160/255, green: 160/255, blue: 160/255, alpha: 1)], angle: 70)
             ], overlayImage: nil)
-        ], backgroundImage: nil, backgroundOverlay: nil, enableBlur: false),
+        ], backgroundImageName: nil, backgroundOverlay: nil, enableBlur: false),
         
         "mangoCrazy": Theme(colorViewBackgrounds: [
             .init(baseColour: .black, linearGradients: [
                 .init(colours: [UIColor(red: 4/255, green: 160/255, blue: 205/255, alpha: 1), UIColor(red: 226/255, green: 171/255, blue: 54/255, alpha: 1)], angle: 47)
             ], overlayImage: nil)
-        ], backgroundImage: nil,
+        ], backgroundImageName: nil,
            backgroundOverlay: nil,
            enableBlur: false),
         
@@ -43,7 +43,7 @@ class ThemesManager {
             .init(baseColour: .black, linearGradients: [
                 .init(colours: [UIColor(red: 210/255, green: 135/255, blue: 244/255, alpha: 1), UIColor(red: 247/255, green: 107/255, blue: 28/255, alpha: 1)], angle: 47)
             ], overlayImage: nil)
-        ], backgroundImage: nil, backgroundOverlay: nil, enableBlur: false),
+        ], backgroundImageName: nil, backgroundOverlay: nil, enableBlur: false),
         
         "azurLane": Theme(
             colorViewBackgrounds: [
@@ -51,7 +51,7 @@ class ThemesManager {
                     .init(colours: [.black], angle: 0)
                 ], overlayImage: nil)
             ],
-            backgroundImage: UIImage(named: "azurLane"),
+            backgroundImageName: "azurLane",
             backgroundCenter: CGPoint(x: 1510, y: 800),
             backgroundOverlay: UIColor(white: 0, alpha: 0.3),
             enableBlur: true,
@@ -63,7 +63,7 @@ class ThemesManager {
                     .init(colours: [.black], angle: 0)
                 ], overlayImage: nil)
             ],
-            backgroundImage: UIImage(named: "Linus"),
+            backgroundImageName: "Linus",
             backgroundCenter: CGPoint(x: 340, y: 340),
             backgroundOverlay: UIColor(white: 0, alpha: 0.3),
             enableBlur: true,
@@ -75,7 +75,7 @@ class ThemesManager {
                     .init(colours: [.black], angle: 0)
                 ], overlayImage: nil)
             ],
-            backgroundImage: UIImage(named: "pokemon"),
+            backgroundImageName: "pokemon",
             backgroundCenter: CGPoint(x: 720, y: 720),
             backgroundOverlay: UIColor(white: 0, alpha: 0.3),
             enableBlur: true,
@@ -87,7 +87,7 @@ class ThemesManager {
                     .init(colours: [.black], angle: 0)
                 ], overlayImage: nil)
             ],
-            backgroundImage: UIImage(named: "overwatch"),
+            backgroundImageName: "overwatch",
             backgroundCenter: CGPoint(x: 600, y: 480),
             backgroundOverlay: UIColor(white: 1, alpha: 0.1),
             enableBlur: true,
@@ -99,7 +99,7 @@ class ThemesManager {
                     .init(colours: [.black], angle: 0)
                 ], overlayImage: nil)
             ],
-            backgroundImage: UIImage(named: "league"),
+            backgroundImageName: "league",
             backgroundCenter: CGPoint(x: 750, y: 540),
             backgroundOverlay: UIColor(white: 0, alpha: 0.1),
             enableBlur: true,
@@ -112,7 +112,7 @@ class ThemesManager {
                 ], overlayImage: nil)
             ],
 
-            backgroundImage: nil,
+            backgroundImageName: nil,
             backgroundCenter: CGPoint(x: 0, y: 0),
             backgroundOverlay: UIColor(white: 0, alpha: 0),
             enableBlur: false),
@@ -121,7 +121,7 @@ class ThemesManager {
             .init(baseColour: .black, linearGradients: [
                 .init(colours: [UIColor(red: 210/255, green: 135/255, blue: 244/255, alpha: 1), UIColor(red: 247/255, green: 107/255, blue: 28/255, alpha: 1)], angle: 47)
             ], overlayImage: nil)
-        ], backgroundImage: nil, backgroundOverlay: nil, enableBlur: false)
+        ], backgroundImageName: nil, backgroundOverlay: nil, enableBlur: false)
     ]
     
     public var currentTheme: Theme {

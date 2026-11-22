@@ -9,13 +9,23 @@
 import UIKit
 
 class TableButton: UIControl {
+    // Taurine Reborn: highlight fades out instead of snapping, and disabled rows look disabled.
     override var isHighlighted: Bool {
         didSet {
+            guard isHighlighted != oldValue else { return }
             if isHighlighted {
-                self.backgroundColor = UIColor(white: 1, alpha: 0.3)
+                self.backgroundColor = UIColor(white: 1, alpha: 0.22)
             } else {
-                self.backgroundColor = UIColor.clear
+                UIView.animate(withDuration: 0.25, delay: 0, options: [.allowUserInteraction, .beginFromCurrentState]) {
+                    self.backgroundColor = UIColor.clear
+                }
             }
+        }
+    }
+    
+    override var isEnabled: Bool {
+        didSet {
+            alpha = isEnabled ? 1 : 0.45
         }
     }
 }

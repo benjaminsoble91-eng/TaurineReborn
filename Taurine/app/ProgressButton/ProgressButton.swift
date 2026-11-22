@@ -35,6 +35,36 @@ class ProgressButton: UIButton {
         progressLabel.isUserInteractionEnabled = false
         
         self.titleLabel?.alpha = 0
+        
+        // Taurine Reborn: smoother corners + clip the fill to them.
+        layer.cornerCurve = .continuous
+        clipsToBounds = true
+        progressLabel.contentMode = .redraw
+        
+        addTarget(self, action: #selector(touchDown), for: [.touchDown, .touchDragEnter])
+        addTarget(self, action: #selector(touchUp), for: [.touchUpInside, .touchUpOutside, .touchDragExit, .touchCancel])
+    }
+    
+    @objc private func touchDown() {
+        UIView.animate(withDuration: 0.12, delay: 0, options: [.beginFromCurrentState, .allowUserInteraction]) {
+            self.transform = CGAffineTransform(scaleX: 0.97, y: 0.97)
+            self.alpha = 0.85
+        }
+    }
+    
+    @objc private func touchUp() {
+        UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 0.6, initialSpringVelocity: 0.5,
+                       options: [.beginFromCurrentState, .allowUserInteraction]) {
+            self.transform = .identity
+            self.alpha = 1
+        }
+    }
+    
+    override var isEnabled: Bool {
+        didSet {
+            // Keep the label readable when disabled (e.g. "Jailbroken", "Unsupported").
+            progressLabel.alpha = isEnabled ? 1 : 0.75
+        }
     }
     
     public func setGradient(colors: [UIColor]?, delta: CGFloat){
@@ -51,7 +81,8 @@ class ProgressButton: UIButton {
             _progress = newValue
             progressLabel.progress = newValue
             
-            self.layoutSubviews()
+            setNeedsLayout()
+            layoutIfNeeded()
         }
     }
     
@@ -59,8 +90,14 @@ class ProgressButton: UIButton {
         _progress = progress
         progressLabel.progress = progress
         
-        UIView.animate(withDuration: animated ? 0.25 : 0){
-            self.layoutSubviews()
+        setNeedsLayout()
+        guard animated else {
+            layoutIfNeeded()
+            return
+        }
+        UIView.animate(withDuration: 0.45, delay: 0, usingSpringWithDamping: 0.9, initialSpringVelocity: 0.3,
+                       options: [.beginFromCurrentState, .allowUserInteraction]) {
+            self.layoutIfNeeded()
         }
     }
     
@@ -74,7 +111,12 @@ class ProgressButton: UIButton {
     override func setTitle(_ title: String?, for state: UIControl.State) {
         super.setTitle(title, for: state)
         if state == .normal {
+            guard progressLabel.title != title else { return }
             progressLabel.title = title
+            // Quick crossfade so status changes don't just snap.
+            UIView.transition(with: progressLabel, duration: 0.2, options: [.transitionCrossDissolve, .allowUserInteraction], animations: {
+                self.progressLabel.setNeedsDisplay()
+            }, completion: nil)
         }
     }
     
@@ -83,7 +125,9 @@ class ProgressButton: UIButton {
         
         self.titleLabel?.alpha = 0
         progressView.frame = CGRect(origin: .zero, size: CGSize(width: self.bounds.width * progress, height: self.bounds.height))
-        progressLabel.frame = bounds
+        if progressLabel.frame != bounds {
+            progressLabel.frame = bounds
+        }
         
         progressLabel.setNeedsDisplay()
     }
